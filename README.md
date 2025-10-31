@@ -1,36 +1,40 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# College ID 3D
 
-## Getting Started
+A Next.js (App Router) app that renders a 3D ID card (Three.js) and a lightweight admin logger with Google sign‑in. ID cards are stored in Postgres (Neon) and displayed at unique URLs.
 
-First, run the development server:
+## Features
+- 3D ID card using react‑three‑fiber with tiled background logo from `public/withoutext.png`.
+- Public generator at `/idcard` -> creates an ID and redirects to `/idcard/[id]`.
+- Dynamic card page fetches from Postgres and renders a QR to itself.
+- Admin at `/admin` with Google sign‑in restricted by email, event name "Respawn", manual name field, and integrated QR scanner. Logs are stored to Postgres.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Setup
+1. Copy `.env.local` from the repo and fill the values:
+	- `ADMIN_ALLOWED_EMAIL` and `NEXT_PUBLIC_ADMIN_ALLOWED_EMAIL`
+	- `DATABASE_URL` (already set to your Neon URL)
+	- Firebase web config (already added as NEXT_PUBLIC_* values)
+	- Optional: `NEXT_PUBLIC_SITE_URL` (defaults to `http://localhost:3000`)
+
+2. Install deps:
+```powershell
+npm i
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+3. Run the dev server:
+```powershell
+npm run dev
+```
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+Open:
+- `http://localhost:3000` – landing
+- `http://localhost:3000/idcard` – generator
+- `http://localhost:3000/admin` – admin console
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Database
+Tables are created automatically on first API call:
+- `idcards(id TEXT PRIMARY KEY, name TEXT, created_at TIMESTAMPTZ)`
+- `logs(id BIGSERIAL, event_name TEXT, name TEXT, idcard_id TEXT, admin_email TEXT, created_at TIMESTAMPTZ)`
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Notes
+- The 3D card artwork is programmatically drawn onto a canvas to resemble the provided template. Adjust fonts/colors in `components/IDCardCanvas.jsx` as needed.
+- The admin email check happens on the client for convenience; for stronger enforcement, add server‑side checks to the admin APIs.
