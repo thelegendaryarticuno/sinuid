@@ -4,7 +4,9 @@ import { getFirebase } from '@/lib/firebase';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { Scanner } from '@yudiel/react-qr-scanner';
 
-const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_ALLOWED_EMAIL || process.env.ADMIN_ALLOWED_EMAIL;
+// Comma-delimited list of allowed admin emails (supports both NEXT_PUBLIC_* and server var)
+const ADMIN_EMAILS_RAW = (process.env.NEXT_PUBLIC_ADMIN_ALLOWED_EMAIL || process.env.ADMIN_ALLOWED_EMAIL || '');
+const ADMIN_EMAILS = ADMIN_EMAILS_RAW.split(',').map((s)=>s.trim().toLowerCase()).filter(Boolean);
 
 function extractIdcardId(value) {
   if (!value) return null;
@@ -31,8 +33,9 @@ export default function AdminPage() {
   useEffect(() => {
     return onAuthStateChanged(auth, (u) => {
       setUser(u);
-      const email = u?.email || '';
-      setAllowed(!!email && (!!ADMIN_EMAIL ? email.toLowerCase() === ADMIN_EMAIL.toLowerCase() : true));
+      const email = (u?.email || '').toLowerCase();
+      // If no env is configured, allow anyone; otherwise check membership in list
+      setAllowed(ADMIN_EMAILS.length === 0 ? !!email : ADMIN_EMAILS.includes(email));
     });
   }, [auth]);
 
@@ -43,18 +46,44 @@ export default function AdminPage() {
     await signOut(auth);
   };
 
+  const isJwt = (text) => /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/.test((text||'').trim());
+
   const logEvent = async (raw) => {
-    const id = extractIdcardId(raw || decoded);
-    if (!id) {
-      setStatus('No QR/ID detected');
-      return;
+    const text = (raw || decoded || '').trim();
+    const email = user?.email;
+    if (!email) return setStatus('Not signed in');
+    // If QR contains a JWT, verify and log via /api/scan
+    if (isJwt(text)) {
+      setStatus('Submitting… (token)');
+      try {
+        const res = await fetch('/api/scan', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: text, eventName, adminEmail: email })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed');
+        setStatus(`Logged ✔ ${data.name || ''} (${data.idcardId || 'n/a'})`);
+        return;
+      } catch (e) {
+        setStatus('Error: ' + e.message);
+        return;
+      }
     }
+    // Otherwise, treat as legacy URL or plain ID
+    let id = extractIdcardId(text);
+    if (!id && name) {
+      try {
+        const res = await fetch('/api/idcards', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+        const data = await res.json();
+        if (res.ok && data?.id) { id = data.id; setDecoded(id); }
+      } catch {}
+    }
+    if (!id) return setStatus('No QR/ID detected. Provide a Name to auto-create.');
     setStatus('Submitting…');
     try {
       const res = await fetch('/api/logs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eventName, name, idcardId: id, adminEmail: user?.email })
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventName, name, idcardId: id, adminEmail: email })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed');
@@ -97,7 +126,7 @@ export default function AdminPage() {
                 <label className="block text-sm text-zinc-400">Name</label>
                 <input value={name} onChange={(e)=>setName(e.target.value)} placeholder="Scanned person's name (optional)" className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2"/>
                 <label className="block text-sm text-zinc-400">Manual ID/URL</label>
-                <input value={decoded} onChange={(e)=>setDecoded(e.target.value)} placeholder="Paste QR contents or /idcard/ID" className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2"/>
+                <input value={decoded} onChange={(e)=>setDecoded(e.target.value)} placeholder="Paste QR token or /idcard/ID" className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2"/>
                 <button onClick={() => logEvent()} className="w-full mt-2 rounded bg-sky-600 hover:bg-sky-500 py-2">Log now</button>
                 {status && <div className="text-xs text-zinc-400">{status}</div>}
               </div>
