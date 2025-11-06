@@ -1,5 +1,5 @@
 {
-  "name": "collegeid",
+  "name": "sinu3didcard",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -9,8 +9,10 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@react-three/drei": "^10.7.6",
-    "@react-three/fiber": "^9.4.0",
+    "@react-three/drei": "9.122.0",
+    "@react-three/fiber": "8.18.0",
+    "@react-three/rapier": "1.5.0",
+    "@types/three": "0.160.0",
     "@yudiel/react-qr-scanner": "^2.4.1",
     "firebase": "^12.5.0",
     "jsonwebtoken": "^9.0.2",
@@ -18,9 +20,10 @@
     "ngrok": "^5.0.0-beta.2",
     "pg": "^8.16.3",
     "qrcode": "^1.5.4",
-    "react": "19.2.0",
-    "react-dom": "19.2.0",
-    "three": "^0.181.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "three": "0.160.1",
+    "meshline": "3.2.0",
     "uuid": "^13.0.0"
   },
   "devDependencies": {
